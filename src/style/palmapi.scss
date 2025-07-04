@@ -253,6 +253,12 @@ $text-accent: #00FFFF;
         letter-spacing: 2px;
       }
 
+      .history-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
       .close-history {
         background: none;
         border: none;
@@ -293,6 +299,35 @@ $text-accent: #00FFFF;
       &::-webkit-scrollbar-thumb {
         background: linear-gradient(180deg, $primary-cyan, $primary-blue);
         border-radius: 4px;
+      }
+
+      .history-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: rgba(0, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.8rem;
+        color: $text-secondary;
+        
+        span {
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+          
+          &:first-child {
+            color: $primary-cyan;
+            font-weight: 600;
+          }
+          
+          &:last-child {
+            color: $text-primary;
+          }
+        }
       }
 
       .history-item {

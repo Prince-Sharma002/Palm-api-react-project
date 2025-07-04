@@ -24,13 +24,12 @@ import "../style/palmapi.scss"
 
 import { createWorker } from 'tesseract.js';
 
-
-
 // popup
 import Popup from 'reactjs-popup';
 import 'reactjs-popup/dist/index.css';
 
 import { getBase64 } from './imageHelper';
+import { ConversationStorage } from '../utils/localStorage';
 
 const MODEL_NAME = "gemini-1.5-flash";
 const API_KEY = "AIzaSyB2WAvA1StnH4HRwQq_9GWTIz275p7X0_A";
@@ -75,6 +74,91 @@ const Palmapi = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
   
+  // Load history from localStorage using utility
+  const loadHistoryFromStorage = () => {
+    try {
+      const savedHistory = ConversationStorage.load();
+      if (Array.isArray(savedHistory)) {
+        setHistory(savedHistory);
+        console.log('History loaded from localStorage:', savedHistory.length, 'items');
+      }
+    } catch (error) {
+      console.error('Error loading history from localStorage:', error);
+    }
+  };
+  
+  // Save history to localStorage using utility
+  const saveHistoryToStorage = (historyData) => {
+    try {
+      const success = ConversationStorage.save(historyData);
+      if (success) {
+        console.log('History saved to localStorage:', historyData.length, 'items');
+      } else {
+        console.warn('Failed to save history to localStorage');
+        toast.warning('Failed to save conversation history', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving history to localStorage:', error);
+    }
+  };
+  
+  // Clear history from localStorage using utility
+  const clearHistoryFromStorage = () => {
+    try {
+      const success = ConversationStorage.clear();
+      if (success) {
+        setHistory([]);
+        console.log('History cleared from localStorage');
+        toast.success('Conversation history cleared!', {
+          position: "top-right",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else {
+        throw new Error('Failed to clear storage');
+      }
+    } catch (error) {
+      console.error('Error clearing history from localStorage:', error);
+      toast.error('Failed to clear history', {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    }
+  };
+  
+  // Export history function
+  const exportHistory = () => {
+    try {
+      const exportData = ConversationStorage.export();
+      const blob = new Blob([exportData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sofia-conversation-history-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('History exported successfully!', {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    } catch (error) {
+      console.error('Error exporting history:', error);
+      toast.error('Failed to export history', {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    }
+  };
+  
   
   
   
@@ -82,6 +166,18 @@ const Palmapi = () => {
     logger: m => console.log(m)
   });
   
+  // Load history from localStorage on component mount
+  useEffect(() => {
+    loadHistoryFromStorage();
+  }, []);
+  
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    if (history.length > 0) {
+      saveHistoryToStorage(history);
+    }
+  }, [history]);
+
   useEffect(() => {
     const textGenerate = async () => {
       await worker.load();
@@ -551,45 +647,123 @@ const handleClose = () => {
       <div className={`history-panel ${historyPanelOpen ? 'has-content' : ''}`}>
         <div className="history-header">
           <h3>CONVERSATION HISTORY</h3>
-          <button 
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              border: '2px solid #00FFFF',
-              background: 'rgba(0, 0, 0, 0.8)',
-              color: '#00FFFF',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease',
-              pointerEvents: 'auto',
-              zIndex: 100001
-            }}
-            onClick={() => {
-              console.log('Close history clicked');
-              sideButtonclose();
-            }}
-            title="Close history"
-            type="button"
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.1)';
-              e.target.style.boxShadow = '0 0 15px #00FFFF';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'scale(1)';
-              e.target.style.boxShadow = 'none';
-            }}
-          >
-            ×
-          </button>
+          <div className="history-controls">
+            <button 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: '2px solid #4ECDC4',
+                background: 'rgba(0, 0, 0, 0.8)',
+                color: '#4ECDC4',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.3s ease',
+                pointerEvents: 'auto',
+                zIndex: 100001,
+                marginRight: '10px'
+              }}
+              onClick={() => {
+                console.log('Export history clicked');
+                exportHistory();
+              }}
+              title="Export history"
+              type="button"
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 0 15px #4ECDC4';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              📤
+            </button>
+            <button 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: '2px solid #FF6B6B',
+                background: 'rgba(0, 0, 0, 0.8)',
+                color: '#FF6B6B',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.3s ease',
+                pointerEvents: 'auto',
+                zIndex: 100001,
+                marginRight: '10px'
+              }}
+              onClick={() => {
+                console.log('Clear history clicked');
+                clearHistoryFromStorage();
+              }}
+              title="Clear history"
+              type="button"
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 0 15px #FF6B6B';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              🗑️
+            </button>
+            <button 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: '2px solid #00FFFF',
+                background: 'rgba(0, 0, 0, 0.8)',
+                color: '#00FFFF',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                transition: 'all 0.3s ease',
+                pointerEvents: 'auto',
+                zIndex: 100001
+              }}
+              onClick={() => {
+                console.log('Close history clicked');
+                sideButtonclose();
+              }}
+              title="Close history"
+              type="button"
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 0 15px #00FFFF';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
         <div className="history-content">
-          {history.slice(-5).map((entry, index) => (
-            <div className='history-item' key={index}>
+          <div className="history-stats">
+            <span>Total conversations: {history.length}</span>
+            <span>Storage: {history.length > 0 ? '💾 Saved' : '📝 Empty'}</span>
+          </div>
+          {history.slice(-10).reverse().map((entry, index) => (
+            <div className='history-item' key={history.length - index - 1}>
               <div className="history-prompt">
                 <span className="history-label">USER:</span>
                 <p>{entry.prompt}</p>
