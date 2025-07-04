@@ -925,7 +925,7 @@ loading == true && (aiResponse == '') ?
               className='command-input'
               value={inputText}
               onChange={(e) => setInputtext(e.target.value)}
-              placeholder='Speak or type your command...'
+              placeholder='Speak Sofia then task or type your command...'
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
                   handleSubmit(e);
