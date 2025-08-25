@@ -74,6 +74,9 @@ const Palmapi = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
   
+  // Hide/Show entire command interface
+  const [commandHidden, setCommandHidden] = useState(false);
+  
   // Load history from localStorage using utility
   const loadHistoryFromStorage = () => {
     try {
@@ -853,6 +856,43 @@ loading == true && (aiResponse == '') ?
 
 
 
+      {/* Command Interface visibility toggle (floating) */}
+      <button
+        style={{
+          position: 'fixed',
+          bottom: isMobile ? '12px' : '20px',
+          right: isMobile ? '12px' : '20px',
+          borderRadius: '24px',
+          border: '2px solid #00FFFF',
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: '#00FFFF',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 14px',
+          fontSize: isMobile ? '14px' : '16px',
+          fontWeight: 'bold',
+          transition: 'all 0.3s ease',
+          pointerEvents: 'auto',
+          zIndex: 100000
+        }}
+        onClick={() => setCommandHidden(prev => !prev)}
+        title={commandHidden ? 'Show command interface' : 'Hide command interface'}
+        type="button"
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'translateY(-2px)';
+          e.target.style.boxShadow = '0 5px 15px rgba(0, 255, 255, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'translateY(0px)';
+          e.target.style.boxShadow = 'none';
+        }}
+      >
+        {commandHidden ? <TbKeyboardShow /> : <TbKeyboardHide />}
+        <span>{commandHidden ? 'SHOW CONTROLS' : 'HIDE CONTROLS'}</span>
+      </button>
+
       {/* Control Panel - Responsive for mobile/desktop */}
       <div 
         className='floating-control-panel'
@@ -1045,7 +1085,7 @@ loading == true && (aiResponse == '') ?
       </div>
 
       {/* Command Interface */}
-      <div className='command-interface'>
+      <div className='command-interface' style={{ display: commandHidden ? 'none' : 'block' }}>
         <div className='interface-tools'>
           <label 
             className='tool-btn' 
