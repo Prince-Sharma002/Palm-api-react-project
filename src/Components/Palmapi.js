@@ -1,6 +1,7 @@
 
 
-import React, { useEffect, useState , useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   GoogleGenerativeAI,
   HarmCategory,
@@ -31,58 +32,100 @@ import 'reactjs-popup/dist/index.css';
 import { getBase64 } from './imageHelper';
 import { ConversationStorage } from '../utils/localStorage';
 
+// Redux actions
+import {
+  setFormExpanded,
+  toggleFormExpanded,
+  setIsPopupOpen,
+  setHistoryPanelOpen,
+  setWindowWidth,
+  setCommandHidden,
+  toggleCommandHidden,
+  setLoading,
+  setTextCopy,
+} from '../store/slices/uiSlice';
+
+import {
+  setListening,
+  toggleListening,
+  setTranscript,
+  setSpeakerIcon,
+  toggleSpeakerIcon,
+  setVoices,
+  setFemaleVoice,
+  clearTranscript,
+} from '../store/slices/speechSlice';
+
+import {
+  setSelectedImage,
+  setTextResult,
+  setImage,
+  setImageInlineData,
+  setAiResponse,
+  clearImageData,
+} from '../store/slices/imageSlice';
+
+import {
+  setInputText,
+  setResponseText,
+  setHistory,
+  addToHistory,
+  clearInput,
+  clearResponse,
+  clearAll,
+} from '../store/slices/conversationSlice';
+
 const MODEL_NAME = "gemini-1.5-flash";
 const API_KEY = "AIzaSyB2WAvA1StnH4HRwQq_9GWTIz275p7X0_A";
 
 
 const Palmapi = () => {
+  const dispatch = useDispatch();
   const genAI = new GoogleGenerativeAI(API_KEY);
-  const [formExpanded, setFormExpanded] = useState(false);
   
-  const [inputText, setInputtext] = useState("");
-  const [responseText, setResponsetext] = useState("");
+  // Redux state selectors
+  const {
+    formExpanded,
+    isPopupOpen,
+    historyPanelOpen,
+    windowWidth,
+    commandHidden,
+    loading,
+    textcopy,
+  } = useSelector((state) => state.ui);
   
-  const [listening, setListening] = useState(true);
-  const [transcript, setTranscript] = useState("");
-  const [loading , setLoading]  = useState(false);
-
-  const [ speakerIcon, setSpeakerIcon] = useState(true)
-
-  const [history, setHistory] = useState([]);
+  const {
+    listening,
+    transcript,
+    speakerIcon,
+    voices,
+    femaleVoice,
+  } = useSelector((state) => state.speech);
+  
+  const {
+    selectedImage,
+    textresult,
+    image,
+    imageInlineData,
+    aiResponse,
+  } = useSelector((state) => state.image);
+  
+  const {
+    inputText,
+    responseText,
+    history,
+  } = useSelector((state) => state.conversation);
   
   const utteranceRef = useRef(null);
   const synth = window.speechSynthesis;
-  const [voices, setVoices] = useState([]);
-  const [femaleVoice, setFemaleVoice] = useState(null);
-  
-  const [textcopy , settextCopy] = useState(false);
-  
-  
-  // image to text
-  const [selectedImage , setSelectedImage] = useState(null);
-  const [textresult , setTextresult] = useState("");
-  
-  // image  
-  const [image, setImage] = useState('');
-  const [imageInineData , setImageInlineData ] = useState(null);
-  const [aiResponse, setResponse] = useState('');
-  
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
-  
-  // Responsive state
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
-  
-  // Hide/Show entire command interface
-  const [commandHidden, setCommandHidden] = useState(false);
   
   // Load history from localStorage using utility
   const loadHistoryFromStorage = () => {
     try {
       const savedHistory = ConversationStorage.load();
       if (Array.isArray(savedHistory)) {
-        setHistory(savedHistory);
+        dispatch(setHistory(savedHistory));
         console.log('History loaded from localStorage:', savedHistory.length, 'items');
       }
     } catch (error) {
@@ -113,7 +156,7 @@ const Palmapi = () => {
     try {
       const success = ConversationStorage.clear();
       if (success) {
-        setHistory([]);
+        dispatch(setHistory([]));
         console.log('History cleared from localStorage');
         toast.success('Conversation history cleared!', {
           position: "top-right",
@@ -189,7 +232,7 @@ const Palmapi = () => {
         const { data: { text } } = await worker.recognize(selectedImage);
         console.log(text);
         await worker.terminate();   
-        setTextresult(text);
+        dispatch(setTextResult(text));
     };
 
     if (selectedImage) {
@@ -200,7 +243,7 @@ const Palmapi = () => {
 
 const handleSubmitImage = (e) => {
     console.log(e.target.files[0])
-    setSelectedImage(e.target.files[0])
+    dispatch(setSelectedImage(e.target.files[0]))
 }
 
 
@@ -208,48 +251,45 @@ const handleSubmitImage = (e) => {
 // image to process text
 const handleImageChange =  (e) => {
   const file = e.target.files[0];
-  setSelectedImage(e.target.files[0])
+  dispatch(setSelectedImage(e.target.files[0]))
 
-  setIsPopupOpen(true);
+  dispatch(setIsPopupOpen(true));
   
 
   // getting base64 from file to render in DOM
   getBase64(file)
       .then((result) => {
-          setImage(result);
+          dispatch(setImage(result));
       })
       .catch(e => console.log(e))
 
   // generating content model for Gemini Google AI
   fileToGenerativePart(file).then((image) => {
-      setImageInlineData(image);
+      dispatch(setImageInlineData(image));
   });
 
 }
 
 async function aiImageRun() {
         
-  setLoading(true);
-  setResponse('');
+  dispatch(setLoading(true));
+  dispatch(setAiResponse(''));
   
 try{
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const result = await model.generateContent([
-      "What is this?", imageInineData
+      "What is this?", imageInlineData
   ]);
   const response = await result.response;
   const text = response.text();
 
-  setResponse(text);
-  setResponsetext(text);
-  setLoading(false);
+  dispatch(setAiResponse(text));
+  dispatch(setResponseText(text));
+  dispatch(setLoading(false));
 
   speak(text);
 
-  setHistory(prevHistory => [
-    ...prevHistory,
-    { prompt: "image", response: response.text() }
-  ]);
+  dispatch(addToHistory({ prompt: "image", response: response.text() }));
 }catch(err){
   console.log(err);
 }
@@ -286,7 +326,7 @@ const handleClick = () => {
 
         const loadVoices = () => {
           const availableVoices = synth.getVoices();
-          setVoices(availableVoices);
+          dispatch(setVoices(availableVoices));
           console.log('Available voices:', availableVoices.map(v => v.name));
     
           // Find a female voice
@@ -296,7 +336,7 @@ const handleClick = () => {
             voice.name.toLowerCase().includes('hazel') ||
             voice.gender === 'female'
           );
-          setFemaleVoice(female);
+          dispatch(setFemaleVoice(female));
         };
     
         // Load voices initially and on voiceschanged event
@@ -308,7 +348,7 @@ const handleClick = () => {
       // Handle window resize for responsiveness
       useEffect(() => {
         const handleResize = () => {
-          setWindowWidth(window.innerWidth);
+          dispatch(setWindowWidth(window.innerWidth));
         };
         
         window.addEventListener('resize', handleResize);
@@ -328,8 +368,8 @@ const handleClick = () => {
         recognition.lang = 'en-US';
         recognition.onresult = (event) => {
           const currentTranscript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-          setTranscript(currentTranscript);
-          setInputtext(currentTranscript);
+          dispatch(setTranscript(currentTranscript));
+          dispatch(setInputText(currentTranscript));
         
         };
         recognition.start();
@@ -341,8 +381,8 @@ const handleClick = () => {
       };
 
 
-      const toggleListening = () => {
-        setListening((prevState) => !prevState);
+      const toggleListeningState = () => {
+        dispatch(toggleListening());
       };
 
     const wordRemove = (text , wordToRemove)=>{
@@ -402,13 +442,13 @@ const handleClick = () => {
         } else {
           synth.resume();
         }
-        setSpeakerIcon(!speakerIcon);
+        dispatch(toggleSpeakerIcon());
   };
 
   const clear = ()=>{
     synth.cancel();
-    setTranscript("");
-    setResponsetext("")
+    dispatch(clearTranscript());
+    dispatch(clearResponse());
   }
 
   const repeat = ()=>{
@@ -449,7 +489,7 @@ const handleClick = () => {
 
   const copyhistory = (data)=>{
       
-      settextCopy(true); 
+      dispatch(setTextCopy(true)); 
       navigator.clipboard.writeText(data)
       .then(() => {
         console.log('Text copied to clipboard');
@@ -504,30 +544,27 @@ const runChat = async (text) => {
     if(text.includes("sofia")){
         
         afterremove = wordRemove(text , "sofia");
-        setInputtext(afterremove);
+        dispatch(setInputText(afterremove));
         console.log(afterremove)
         
     }
 
-    setLoading(true);
+    dispatch(setLoading(true));
 
     if(afterremove === "")
       return ;
     const result = await chat.sendMessage(afterremove);
-    setInputtext("");
+    dispatch(setInputText(""));
     const response = result.response;
 
     const responseTextWithoutAsterisk = response.text().replace(/\*/g, '');
 
     speak(responseTextWithoutAsterisk);
-    setResponsetext(responseTextWithoutAsterisk);
+    dispatch(setResponseText(responseTextWithoutAsterisk));
 
-    setLoading(false);
+    dispatch(setLoading(false));
 
-    setHistory(prevHistory => [
-      ...prevHistory,
-      { prompt: text, response: response.text() }
-    ]);
+    dispatch(addToHistory({ prompt: text, response: response.text() }));
 
 
   };
@@ -552,29 +589,29 @@ const runChat = async (text) => {
       if (synth.speaking) {
           synth.pause();
       }
-      setHistoryPanelOpen(true);
+      dispatch(setHistoryPanelOpen(true));
     };
   
     const sideButtonclose = () => {
       console.log("close")
       synth.resume();
-      setHistoryPanelOpen(false);
+      dispatch(setHistoryPanelOpen(false));
     };
   
 
 
 const toggleFormPosition = () => {
-  setFormExpanded(!formExpanded);
+  dispatch(toggleFormExpanded());
 };
 
 
-const clearInput = ()=>{
-  setInputtext("");
+const clearInputField = ()=>{
+  dispatch(clearInput());
 }
 
 
 const handleClose = () => {
-  setIsPopupOpen(false);
+  dispatch(setIsPopupOpen(false));
 };
 
 
@@ -877,7 +914,7 @@ loading == true && (aiResponse == '') ?
           pointerEvents: 'auto',
           zIndex: 100000
         }}
-        onClick={() => setCommandHidden(prev => !prev)}
+        onClick={() => dispatch(toggleCommandHidden())}
         title={commandHidden ? 'Show command interface' : 'Hide command interface'}
         type="button"
         onMouseEnter={(e) => {
@@ -1138,7 +1175,7 @@ loading == true && (aiResponse == '') ?
               type="text"
               className='command-input'
               value={inputText}
-              onChange={(e) => setInputtext(e.target.value)}
+              onChange={(e) => dispatch(setInputText(e.target.value))}
               placeholder='Speak Sofia then task or type your command...'
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
@@ -1154,7 +1191,7 @@ loading == true && (aiResponse == '') ?
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  toggleListening();
+                  toggleListeningState();
                 }}
               >
                 <PiMicrophoneFill />
@@ -1166,7 +1203,7 @@ loading == true && (aiResponse == '') ?
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  clearInput();
+                  clearInputField();
                 }}
               >
                 <ImCross />
